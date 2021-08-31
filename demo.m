@@ -34,7 +34,7 @@ for i = 2:dim
     Phif (i, i - 1) = tf(flip(g1.num{1}), flip(g1.den{1}));
 end
 iPhif = ss(inv(Phif));
-Gf = Gammaf * iPhif;
+Gf = iPhif * Gammaf;
 
 %%
 %  Form network approximation which allows for augmented sparsity
@@ -126,11 +126,7 @@ G0i = ss(Ar + Br * Fr, Br / Hr, Fr, inv(Hr));
 %% 
 %  Check the numerical validity of the obtained DCF and NRCF
 
-% Apply bilinear mapping, which preserves L-infinity norm, for increased
-% numerical precision
-norm((Ga * (Tk * Mb) / Tk) - (Nb * Tk), inf) % approximately 0
-
-% Form DCF for the approximated network's TFM
+% Form and check the DCF for the approximated network's TFM
 LCF_d = ss([Tk \ Ytb * Tk Tk \ (- Xtb * eye(dim));...
          - Ntb * Tk (Mtb * eye(dim))], 'min');
 RCF_d = ss([Tk \ (Mb * Tk) Tk \ (eye(dim) * Xb);...
@@ -143,7 +139,7 @@ norm(Ga * RCF(1:dim, :) - RCF(dim + 1:2 * dim, :), inf) % approximately 0
 % Form NRCF block-column
 ortg = ss(RCF * G0i, 'min'); 
 
-% Check first right coprimeness and then normalization
+% Check first that it is a RCF and then the latter's normalization
 norm(Ga * ortg(1:dim, :) - ortg(dim + 1:2 * dim, :), inf) % approximately 0
 norm(ss(ortg'*ortg,'min')-eye(dim),inf) % approximately 0
 
@@ -527,6 +523,7 @@ function F = place_dss(E, A, B, lam_vec)
     temp = ss(E_22 \ A_22, E_22 \ B_2, eye(re), zeros(re, m));
     [tempb, ~, T] = balreal(temp); % balance the realization to avoid
                                    % even mild numerical concerns
+                                   
     F_22 = - place(tempb.a, tempb.b, lam_vec);
     F_22 = F_22 * T;
     F_2 = [zeros(m, n - re) F_22];
