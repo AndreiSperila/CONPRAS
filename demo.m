@@ -21,20 +21,69 @@ for i = 2:dim
     Phi(i, i - 1) = g1;
 end
 
-G = tf(Phi \ Gamma);
+G = Phi \ Gamma;
 
-%% 
-%  Apply bilinear mapping to network TFM, turning it into a proper TFM
-%  and preserving the gap metric with respect to other transformed systems
 
-Gammaf = ss(eye(dim) * tf(flip(g2.num{1}), flip(g2.den{1})));
-Phif = eye(dim) * tf(1, 1);
-Phif (1, dim) = tf(flip(g1.num{1}), flip(g1.den{1}));
-for i = 2:dim
-    Phif (i, i - 1) = tf(flip(g1.num{1}), flip(g1.den{1}));
+%%
+%  Compute a minimal realization of G
+
+coef_dom_n = zeros(dim);
+coef_dom_d1 = zeros(dim);
+coef_dom_d2 = zeros(dim);
+for i=1:dim
+    for j=1:dim
+        temp = G(i,j);
+        temp_x = temp.num{1};
+        temp_y = temp.den{1};
+        coef_dom_n(i,j) = temp_x(1);
+        coef_dom_d1(i,j) = temp_y(1);
+        coef_dom_d2(i,j) = temp_y(2);
+    end
 end
-iPhif = ss(inv(Phif));
-Gf = iPhif * Gammaf;
+
+norm(coef_dom_d1) % is equal to 0
+norm(coef_dom_d2 - ones(dim)) % is equal to 0
+rank(coef_dom_n) % is equal to 1, while the matrix is -0.2 * ones(dim)
+
+% These imply that it has a simple pole at infinity, which we shall isolate
+
+% Apply bilinear mapping (s->1/s) to the network's TFM, thus turning it 
+% proper to allow separation into the origina's proper and improper parts
+
+Gammaf = flip_TFM_ss(Gamma);
+Phif = flip_TFM_ss(Phi);
+Gf = balreal(ss(Phif \ Gammaf,'min')); % form remapped network
+
+Gf_propl = Gf - tf(1,[1 0]) * coef_dom_n; % no poles at 0, and therefore
+                                          % the unmapped TFM is proper
+Gf_propl = balreal(ss(Gf_propl,'min'));
+G_prop = flip_TFM_ss(Gf_propl);
+
+G_improp = coef_dom_n(1,1)*ones(dim,1)*ss(tf([1,0],1))*ones(1,dim);
+G_dss = G_prop + G_improp;
+
+norm(G - G_dss, inf) % approximately 0
+
+%%
+%  Form NRCF of original network
+
+lam_G = -1:-0.1:-1-0.1*(length(Gf.a)-1);
+F = place_dss(G_dss.e, G_dss.a, G_dss.b,lam_G);
+orig_RCF = dss(G_dss.a + G_dss.b * F,   G_dss.b, [F;...
+              G_dss.c + G_dss.d * F], [eye(dim) ; G_dss.d], G_dss.e);
+% form stable RCF for the spectral factorization problem
+orig_RCF = balreal(ss(orig_RCF,'min')); % eliminate nondynamic modes
+
+Ao = orig_RCF.a;
+Bo = orig_RCF.b;
+Co = orig_RCF.c;
+Do = orig_RCF.d;
+   
+[Xo, ~, Fo] = care(Ao, Bo, Co' * Co, Do' * Do, Co' * Do);
+               
+orig_NRCF = ss(Ao - Bo * Fo, Bo / chol(Do' * Do), Co - Do * Fo,...
+               Do / chol(Do' * Do));
+orig_NRCF = balreal(ss(orig_NRCF,'min'));
 
 %%
 %  Form network approximation which allows for augmented sparsity
@@ -44,20 +93,11 @@ kappa = 2;
 Tk = [zeros(1, dim); [2 * eye(dim - 1) zeros(dim - 1, 1)]] + eye(dim);
 Tk(1, dim) = kappa;
 
-%%
-%  Apply bilinear mapping to approximated network TFM to easily compute gap
-%  metric between it and the transformed system
-
-Gbarl = tf(flip(Gbar.num{1}), flip(Gbar.den{1}));
-Gal = Gbarl * Tk;
-net_dist = gapmetric(Gf, Gal, 1e-5); % force increased accuracy
-disp(net_dist) % approximately 0.5609, unless Gf not accurately computed
-
 %% 
 %  Exploit approximation structure for computation of admissible feedbacks
 
 Gbarss = ss(Gbar - evalfr(Gbar, 0)); % select descriptor feedthrough
-Gbarss.d = evalfr(Gbar, 0);          % for increased accuracy 
+Gbarss.d = evalfr(Gbar, 0);          % for increased numerical accuracy 
 A = Gbarss.a;
 B = Gbarss.b;
 C = Gbarss.c;
@@ -102,57 +142,160 @@ La = diag_rep(L, dim);
 %%
 %  Compute a stable right coprime factorization for the approximated
 %  network's TFM and use it to find its corresponding spectral factor
+%  along with the NRCF of the approximated netwrok's TFM
 
-temp_RCF = ss([Mb; Nb], 'min');
-RCF = ss(diag_rep(temp_RCF.a, dim),...
-       diag_rep(temp_RCF.b, dim) * Tk,...
+temp_RCF = balreal(ss([Mb; Nb], 'min'));
+appr_RCF = ss(diag_rep(temp_RCF.a, dim), diag_rep(temp_RCF.b, dim) * Tk,...
        [Tk \ diag_rep(temp_RCF.c(1, :), dim);...
        diag_rep(temp_RCF.c(2, :), dim)],...
        [Tk \ diag_rep(temp_RCF.d(1, :), dim);...
        diag_rep(temp_RCF.d(2, :), dim)] * Tk);
-Ar = RCF.a;
-Br = RCF.b;
-Cr = RCF.c;
-Dr = RCF.d;
+appr_RCF = balreal(ss(appr_RCF,'min'));
+
+Ar = appr_RCF.a;
+Br = appr_RCF.b;
+Cr = appr_RCF.c;
+Dr = appr_RCF.d;
    
-[Xr, ~, Fr] = care(Ar, Br, Cr' * Cr,...
-                   Dr' * Dr, Cr' * Dr);
+[Xr, ~, Fr] = care(Ar, Br, Cr' * Cr, Dr' * Dr, Cr' * Dr);
 Fr = - Fr;
 Hr = chol(Dr'*Dr);
 
-G0 = ss(Ar, Br, - Hr * Fr, Hr);
-G0i = ss(Ar + Br * Fr, Br / Hr, Fr, inv(Hr));
+appr_NRCF = ss(Ar + Br * Fr, Br / Hr, Cr + Dr * Fr, Dr / Hr);
+appr_NRCF = balreal(ss(appr_NRCF,'min'));
 
 %% 
-%  Check the numerical validity of the obtained DCF and NRCF
+%  Check the numerical validity of the obtained DCF and NRCFs
 
 % Form and check the DCF for the approximated network's TFM
 LCF_d = ss([Tk \ Ytb * Tk Tk \ (- Xtb * eye(dim));...
          - Ntb * Tk (Mtb * eye(dim))], 'min');
 RCF_d = ss([Tk \ (Mb * Tk) Tk \ (eye(dim) * Xb);...
          Nb * Tk eye(dim) * Yb], 'min');
-norm(ss(LCF_d * RCF_d, 'min') - eye(dim * 2), inf) % approximately 0
+norm(LCF_d * RCF_d - eye(dim * 2), inf)
+% approximately 0
 
-% Check RCF used in the spectral factorization
-norm(Ga * RCF(1:dim, :) - RCF(dim + 1:2 * dim, :), inf) % approximately 0
+% Validate the approximation's RCF and NRCF
+norm(Ga - appr_RCF(dim + 1:2 * dim, :) / appr_RCF(1:dim, :), inf)
+% approximately 0
+norm(Ga - appr_NRCF(dim + 1:2 * dim, :) / appr_NRCF(1:dim, :), inf)
+% approximately 0
+norm(appr_NRCF'*appr_NRCF - eye(dim), inf) % approximately 0
 
-% Form NRCF block-column
-ortg = ss(RCF * G0i, 'min'); 
-
-% Check first that it is a RCF and then the latter's normalization
-norm(Ga * ortg(1:dim, :) - ortg(dim + 1:2 * dim, :), inf) % approximately 0
-norm(ss(ortg'*ortg,'min')-eye(dim),inf) % approximately 0
+% Validate the original network's RCF and NRCF
+norm(G - orig_RCF(dim + 1:2 * dim, :) / orig_RCF(1:dim, :), inf)
+% approximately 0
+norm(G - orig_NRCF(dim + 1:2 * dim, :) / orig_NRCF(1:dim, :), inf)
+% approximately 0
+norm(orig_NRCF'*orig_NRCF - eye(dim), inf)
+% approximately 0
 
 %% 
 %  Compute maximum stability radius for the approximated network's TFM
 
-Gc = lyap(ortg.a',ortg.b*ortg.b'); % controllability gramian of NRCF
-Go = lyap(ortg.a, ortg.c'*ortg.c); % observability gramian of NRCF
+% controllability gramian of NRCF
+Gc = lyap(appr_NRCF.a, appr_NRCF.b*appr_NRCF.b');
+% observability gramian of NRCF
+Go = lyap(appr_NRCF.a', appr_NRCF.c'*appr_NRCF.c);
 max_rad = sqrt(1 - max(abs(eig(Gc * Go)))); % maximum stability radius
 disp(max_rad) % large value indicates potential for good robustness
 
 %%
-%  Setup interative procedure
+%  Compute directed gap metric between the approximated network's TFM
+%  and that of the original network
+
+% Compute NLCF of the original network's TFM
+
+L = place_dss(G_dss.e', G_dss.a', G_dss.c',lam_G)';
+orig_LCF = dss(G_dss.a + L * G_dss.c, [G_dss.b + (L * G_dss.d) L],...
+               G_dss.c, [G_dss.d eye(dim)],G_dss.e);
+orig_LCF = balreal(ss(orig_LCF, 'min')); % eliminate nondynamic modes
+
+% The elimination of nondynamic modes may leave a residual singular value
+% of around 1e-15 in the gain at infinity of the "denominator" TFM and we
+% proceed to elimitate it, for increased numerical accuracy
+[U,Sig,V] = svd(orig_LCF(:, dim + 1:2 * dim).d);
+Sig(end,end) = 0;
+orig_LCF = (ss(orig_LCF.a, orig_LCF.b, orig_LCF.c,...
+              [orig_LCF(:, 1:dim).d U*Sig*V']));
+
+Al = orig_LCF.a';
+Bl = orig_LCF.c';
+Cl = orig_LCF.b';
+Dl = orig_LCF.d';
+   
+[Xl, ~, Fl] = care(Al, Bl, Cl' * Cl, Dl' * Dl, Cl' * Dl);
+Fl = - Fl;
+Hl = chol(Dl' * Dl);
+
+orig_NLCF = ss(Al + Bl * Fl, Bl / Hl, Cl + Dl * Fl, Dl / Hl);
+orig_NLCF = ss(orig_NLCF.a', orig_NLCF.c', orig_NLCF.b', orig_NLCF.d');
+orig_NLCF = balreal(ss(orig_NLCF, 'min'));
+
+% Validate the original network's LCF and NLCF
+norm(G - orig_LCF(:, dim + 1:2 * dim) \ orig_LCF(:, 1:dim), inf)
+% approximately 0
+norm(G - orig_NLCF(:, dim + 1:2 * dim) \ orig_NLCF(:, 1:dim), inf)
+% approximately 0
+norm(orig_NLCF * orig_NLCF' - eye(dim), inf)
+% approximately 0
+
+%%
+
+% Compute terms of the associated two-block distance problem
+JJ = balreal(ss(orig_NLCF * blkdiag(-eye(dim), eye(dim)) * appr_NRCF,...
+                'min'));
+GG = balreal(ss(orig_NRCF' * appr_NRCF, 'min'));
+
+dist_min = norm(JJ, inf);
+dist_max = 1; % must be stricty larger than dist_min to allow factorization
+tol_dist = 1e-6;
+
+% Vompute the directed gap metric thorugh a bisection algorithm
+while dist_max-dist_min > tol_dist
+    
+    net_dist = (dist_max + dist_min)/2;
+    
+    % The following system is guaranteed to be positive-definite
+    % on the extended imaginary axis
+    FF = balreal(ss(net_dist^2*eye(dim)-JJ'*JJ,'min'));
+    
+    [sFF, aFF] = stabsep(FF - FF.d); % isolate the stable part
+    Aff = sFF.a;
+    Bff = sFF.b;
+    Cff = sFF.c;
+
+    Xff = care(Aff, Bff, zeros(size(Aff)), FF.d, Cff');
+    % compute the spectral factor
+    SF  = ss(Aff, Bff , sqrtm(FF.d) \ (Cff + Bff' * Xff), sqrtm(FF.d));
+    SF = balreal(ss(SF,'min'));
+    SFi = balreal(ss(inv(SF), 'min'));
+    RR = balreal(ss(GG*SFi,'min')); % symbol of the desired Hankel operator
+        
+    if sum(eig(RR) >= 0) < 1
+        Hankel_norm_sq = 0;
+    else
+        [~,anti_stab_RR] = stabsep(RR - RR.d);
+        % controllability gramian of the antistable part of RR
+        Lc = lyap(anti_stab_RR.a, anti_stab_RR.b*anti_stab_RR.b');
+        % observability gramian of the antistable part of RR 
+        Lo = lyap(anti_stab_RR.a', anti_stab_RR.c'*anti_stab_RR.c);
+        % square of the norm for the Hankel operator of symbol RR
+        Hankel_norm_sq = max(abs(eig(Lc * Lo)));
+    end
+    
+    if Hankel_norm_sq < 1
+        dist_max = net_dist;
+    else
+        dist_min = net_dist;
+    end
+    
+end
+
+disp(net_dist) % just under 0.5609
+
+%%
+%  Setup iterative procedure
 
 eps_m = 0.7; % desired stability margin which is greater than net_dist
 eps_safe = 1e-6; % imposed tolerance level
@@ -170,8 +313,7 @@ T_sys = dss([Ar, - Br * Fa; zeros(length(Aa), length(Ar))...
              [- Hr * Fr, - Hr * Fa]; [zeros(dim, length(Ar)) Ca]], ...
              [[zeros(dim), - eps_m * Hr] eps_m * Hr / Tk;...
              [eye(dim), - Da] zeros(dim)], blkdiag(eye(size(Ar)), Ea));
-T_sys = ss(T_sys, 'min');
-T_sys = balreal(T_sys);
+T_sys = balreal(ss(T_sys, 'min'));
 
 % Declare state matrices for fixed part of the closed-loop system
 Af   = T_sys.a;
@@ -242,7 +384,7 @@ if sol.problem ~= 0
     yalmiperror(sol.problem)
 end
 
-max_iter = 20; % maximum number of allowed iterations
+max_iter = 100; % maximum number of allowed iterations
 resid = cell(1, max_iter); % bilinear constraint violation per iteration
 
 % Prepare first iteration
@@ -383,9 +525,9 @@ end
 Qs = tf(value(d),1) * eye(dim); % express the solution of the optimization 
 Q = (Tk \ Qs * eye(dim)); % form the Youla parameter for the original DCF
 
-K_LCF = ss(Tk \ (Ytb * Tk) + Q * Ntb * Tk, 'min'); % left coprime factor
-K_RCF = ss(Tk \ (Xtb * eye(dim)) + Q * Mtb, 'min'); % right coprime factor
-K = ss(K_LCF \ K_RCF, 'min'); % the controller's structureless TFM
+K_LCF = balreal(ss(Tk \ (Ytb * Tk) + Q * Ntb * Tk, 'min')); % left factor
+K_RCF = balreal(ss(Tk \ (Xtb * eye(dim)) + Q * Mtb, 'min')); % right factor
+K = balreal(ss(K_LCF \ K_RCF, 'min')); % the controller's structureless TFM
 
 %% 
 %  Form closed-loop system
@@ -400,23 +542,25 @@ T1e = dss([Ar, - Br * Fa; zeros(length(Aa), length(Ar)) Aa + La * Ca], ...
           [zeros(length(Ar), dim), - Br; La, - Ba - La * Da], eps_m * ...
           [- Hr * Fr, - Hr * Fa], [zeros(dim), - eps_m * Hr],...
           blkdiag(eye(size(Ar)), Ea));
-T1e = ss(T1e, 'min'); % eliminate nondynamic modes
+T1e = balreal(ss(T1e, 'min')); % eliminate nondynamic modes
+
 
 T2e = ss(Ar, Br, - eps_m * Hr * Fr, eps_m * Hr); % no nondynamic modes
+T2e = balreal(ss(T2e,'min')); 
 
 T3e = dss(Aa + La * Ca, [La, - Ba - La * Da], Ca, [eye(dim), - Da], Ea);
-T3e = ss(T3e, 'min'); % eliminate nondynamic modes
+T3e = balreal(ss(T3e, 'min')); % eliminate nondynamic modes
 
 T_CL_r = T1e + T2e * Q * T3e;
-T_CL_r = ss(T_CL_r, 'min');
+T_CL_r = balreal(ss(T_CL_r, 'min'));
 
 rob_marg_1 = eps_m / hinfnorm(T_CL_r, inf); % greater than eps_m
 disp(rob_marg_1) % display obtained stability radius for approximation
 
-rob_marg_2 = ncfmargin(Ga, K, 1); % greater than net_dist
+rob_marg_2 = ncfmargin(Ga, K, 1, 1e-6); % greater than net_dist
 disp(rob_marg_2) % validate previous computation
 
-rob_marg_3 = ncfmargin(G, K, 1); % good robustness indicator
+rob_marg_3 = ncfmargin(G, K, 1, 1e-6); % good robustness indicator
 disp(rob_marg_3) % display obtained stability radius for original network
 
 %% 
@@ -428,11 +572,12 @@ K_RF_struc = Tk* K_RCF; % form structured right factor of controller LCF
 Phi_K = tf(0, 1) * ones(dim);
 Gamma_K = tf(0, 1) * ones(dim);
 
-Phi_K(1, dim) = - ss(K_LF_struc(1, 1) \ K_LF_struc(1, dim), 'min');
-Gamma_K(1, 1) = ss(K_LF_struc(1, 1) \ K_RF_struc(1, 1), 'min');
+Phi_K(1, dim) = -balreal(ss(K_LF_struc(1, 1) \ K_LF_struc(1, dim), 'min'));
+Gamma_K(1, 1) = balreal(ss(K_LF_struc(1, 1) \ K_RF_struc(1, 1), 'min'));
 for i = 2:dim
-  Phi_K(i, i - 1) = - ss(K_LF_struc(i, i) \ K_LF_struc(i, i - 1), 'min');
-  Gamma_K(i, i) = ss(K_LF_struc(i, i) \ K_RF_struc(i, i), 'min');
+  Phi_K(i, i - 1) = -balreal(ss(K_LF_struc(i, i) \ K_LF_struc(i, i - 1),...
+                                 'min'));
+  Gamma_K(i, i) = balreal(ss(K_LF_struc(i, i) \ K_RF_struc(i, i), 'min'));
 end
 
 %% 
@@ -442,7 +587,7 @@ Phi_K_a = Phi_K; % preserve feedforward term
 Gamma_K_a = floor(evalfr(Gamma_K,inf)); % approximate feedback term
 K_a = (eye(dim) - Phi_K_a) \ Gamma_K_a; % form apprixmated controller's TFM
 
-rob_marg_a = ncfmargin(G, K_a, 1); % still a good robustness indicator
+rob_marg_a = ncfmargin(G, K_a, 1,1e-6); % still a good robustness indicator
 disp(rob_marg_a) % display obtained stability radius after approximation
 
 %%
@@ -550,5 +695,27 @@ function Xt = diag_rep(X, n)
     for i = 1:n
         Xt = blkdiag(Xt, X);
     end
+    
+end
+
+ 	
+%%
+
+function [Gf] = flip_TFM_ss(G)
+
+    % Auxiliary function which effects the change of variable s -> 1/s
+    % and returns the state-space realization of the resulting system
+    % This implementation assumes G has no pole at 0 or at infinity
+
+    temp = tf(G);
+    D = evalfr(temp, 0); % G(0) becomes G(Inf)
+    Gft = balreal(ss((D - G) * tf(1, [1 0]), 'min')); % obtain realization
+                                                      % for (G(0) - G(s))/s
+                                                     
+    % Note that when shifting from s to p = 1/s, we now have that
+    % Gft.c * inv(I - p * Gft.a) * Gft.b * p = (D - G(p)) * p  
+    
+    Gf = balreal(ss(inv(Gft.a), Gft.a \ Gft.b, Gft.c, D)); % form G(1/s) 
+    Gf = balreal(ss(Gf, 'min'));
     
 end
