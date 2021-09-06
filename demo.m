@@ -240,8 +240,6 @@ norm(G - orig_NLCF(:, dim + 1:2 * dim) \ orig_NLCF(:, 1:dim), inf)
 norm(orig_NLCF * orig_NLCF' - eye(dim), inf)
 % approximately 0
 
-%%
-
 % Compute terms of the associated two-block distance problem
 JJ = balreal(ss(orig_NLCF * blkdiag(-eye(dim), eye(dim)) * appr_NRCF,...
                 'min'));
