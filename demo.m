@@ -43,7 +43,7 @@ end
 
 norm(coef_dom_d1) % is equal to 0
 norm(coef_dom_d2 - ones(dim)) % is equal to 0
-rank(coef_dom_n) % is equal to 1, while the matrix is -0.2 * ones(dim)
+rank(coef_dom_n) % is equal to 1, while the argument is -0.2 * ones(dim)
 
 % These imply that it has a simple pole at infinity, which we shall isolate
 
@@ -707,7 +707,7 @@ function [Gf] = flip_TFM_ss(G)
     % and returns the state-space realization of the resulting system
     % This implementation assumes G has no pole at 0 or at infinity
 
-    temp = tf(G);
+    temp = ss(G);
     D = evalfr(temp, 0); % G(0) becomes G(Inf)
     Gft = balreal(ss((D - G) * tf(1, [1 0]), 'min')); % obtain realization
                                                       % for (G(0) - G(s))/s
