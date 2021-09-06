@@ -705,7 +705,7 @@ function [Gf] = flip_TFM_ss(G)
 
     % Auxiliary function which effects the change of variable s -> 1/s
     % and returns the state-space realization of the resulting system
-    % This implementation assumes G has no pole at 0 or at infinity
+    % This implementation assumes G has no poles at 0 or at infinity
 
     temp = ss(G);
     D = evalfr(temp, 0); % G(0) becomes G(Inf)
