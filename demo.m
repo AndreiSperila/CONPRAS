@@ -201,8 +201,10 @@ max_rad = sqrt(1 - max(abs(eig(Gc * Go)))); % maximum stability radius
 disp(max_rad) % large value indicates potential for good robustness
 
 %%
-%  Compute directed gap metric between the approximated network's TFM
-%  and that of the original network
+%  Compute the smallest stability radius which needs to be ensured to cover
+%  the distance in H-infinity norm between the approximated network's NRCF
+%  and the Delta-perturbed version of the latter, which acts as an 
+%  arbitrary right factorization of the original network's TFM
 
 % Compute NLCF of the original network's TFM
 
