@@ -247,18 +247,18 @@ JJ = balreal(ss(orig_NLCF * blkdiag(-eye(dim), eye(dim)) * appr_NRCF,...
                 'min'));
 GG = balreal(ss(orig_NRCF' * appr_NRCF, 'min'));
 
-dist_min = norm(JJ, inf);
-dist_max = 1; % must be stricty larger than dist_min to allow factorization
-tol_dist = 1e-6;
+dist_inf = norm(JJ, inf);
+dist_sup = 1; % must be stricty larger than dist_inf to allow factorization
+tol_dist = 1e-6; % absolute tolerance for the bound computed below
 
-% Compute a tight upper bound for the directed gap metric through bisection
-while dist_max-dist_min > tol_dist
+% Compute an upper bound for the directed gap metric through bisection
+while dist_sup-dist_inf > tol_dist
     
-    net_dist = (dist_max + dist_min)/2;
+    dist_check = (dist_sup + dist_inf)/2;
     
     % The following system is guaranteed to be positive-definite
     % on the extended imaginary axis
-    FF = balreal(ss(net_dist^2*eye(dim)-JJ'*JJ,'min'));
+    FF = balreal(ss(dist_check^2*eye(dim)-JJ'*JJ,'min'));
     
     [sFF, aFF] = stabsep(FF - FF.d); % isolate the stable part
     Aff = sFF.a;
@@ -285,19 +285,19 @@ while dist_max-dist_min > tol_dist
     end
     
     if Hankel_norm_sq < 1
-        dist_max = net_dist;
+        dist_sup = dist_check;
     else
-        dist_min = net_dist;
+        dist_inf = dist_check;
     end
     
 end
 
-disp(net_dist) % just under 0.5609
+disp(dist_sup) % just under 0.5609
 
 %%
 %  Setup iterative procedure
 
-eps_m = 0.7; % desired stability margin which is greater than net_dist
+eps_m = 0.7; % desired stability margin which is greater than dist_sup
 eps_safe = 1e-6; % imposed tolerance level
 
 % Compute feedthrough controller "denominator"
@@ -557,7 +557,7 @@ T_CL_r = balreal(ss(T_CL_r, 'min'));
 rob_marg_1 = eps_m / hinfnorm(T_CL_r, inf); % greater than eps_m
 disp(rob_marg_1) % display obtained stability radius for approximation
 
-rob_marg_2 = ncfmargin(Ga, K, 1, 1e-6); % greater than net_dist
+rob_marg_2 = ncfmargin(Ga, K, 1, 1e-6); % greater than dist_sup
 disp(rob_marg_2) % validate previous computation
 
 rob_marg_3 = ncfmargin(G, K, 1, 1e-6); % good robustness indicator
