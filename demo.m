@@ -249,7 +249,7 @@ dist_min = norm(JJ, inf);
 dist_max = 1; % must be stricty larger than dist_min to allow factorization
 tol_dist = 1e-6;
 
-% Compute a tight upper bound for the directed gap metric thorugh bisection
+% Compute a tight upper bound for the directed gap metric through bisection
 while dist_max-dist_min > tol_dist
     
     net_dist = (dist_max + dist_min)/2;
