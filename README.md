@@ -2,4 +2,4 @@
 
 CONvex PRocedure for Augmented Sparsity - This numerical procedure implements the structured robust stabilization technique, based upon the Network Realization Function framework, to synthesize distributed and robustly stabilizing controllers whose sparsity structure may not be obtained by employing the target system's nominal model.
 
-The procedure is currently in its prototype stage and, currently, only a brief demo is provided in order to highlight the efffectiveness and potential of the proposed approach.
+The procedure is currently in its prototype stage and, currently, only a brief demo is provided in order to highlight the efffectiveness and potential of the proposed approach (https://arxiv.org/abs/2109.05954).
