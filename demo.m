@@ -333,7 +333,6 @@ iter = 0; % iteration number
 % Recommended solver for minimizing runtime is MOSEK
 options = sdpsettings('verbose', 1, 'solver', 'mosek');
 
-
 % Define decision variables
 d = sdpvar(1);  % Force the free and stable parameter to be scalar and to
                 % have identical entries for a homogenous control law
@@ -370,10 +369,10 @@ Con_norm = sysmat <= - eps_safe * eye(size(sysmat));
 Con_X_pos = X >= eps_safe * eye(size(X));
 
 % Initial constraint for free term (optional, but speeds up convergence)
-Con_d = dbar == d;
+%Con_d = dbar == d;
 
 % Define constraints
-Con = [Con_def, Con_implem, Con_norm, Con_X_pos, Con_d];
+Con = [Con_def, Con_implem, Con_norm, Con_X_pos];%, Con_d];
 
 sol = optimize(Con, [], options); % check LMI feasibility (necessary)
 
@@ -387,16 +386,78 @@ end
 max_iter = 100; % maximum number of allowed iterations
 resid = cell(1, max_iter); % bilinear constraint violation per iteration
 
-% Prepare first iteration
-resid{1} = norm(value(T_C) - value(T_A) * value(T_B), 'fro');
-Xkb = - value(T_A);
-Ykb = - value(T_B);
-dbar_prev = value(dbar);
-X_prev = value(X);
+% Compute post-initialization cost
+resid{1} = sum(svd(value(T_C) - value(T_A) * value(T_B)));
 
 while iter < max_iter && resid{iter + 1} > eps_safe
- 
+    
+    % Prepare next iteration
     iter = iter + 1;
+    Xka = - value(T_A);
+    Yka = - value(T_B);
+    d_prev = value(d);
+    
+    % Update variables
+    d = d_prev;
+    dbar = sdpvar(1);
+    d2 = sdpvar(1);
+    X = sdpvar(length(T_sys.a));
+    Xbar = sdpvar(length(T_sys.a));
+
+    % Bounded real lemma matrix
+    sysmat = [(Af'*X+(Bf2*Cf2)' * Xbar) + (Af'*X+(Bf2*Cf2)' * Xbar)'...
+              X*Bf1+Xbar*Bf2*Df21 (Cf1+Df12*Cf2*d)'; (X * Bf1 + Xbar *...
+              Bf2 * Df21)' -eye(size(Df11' * Df11)) (Df11 + Df12 * Df21...
+              * d)'; Cf1 + Df12 * Cf2 * d, Df11 + Df12 * Df21 * d,...
+              - eye(size(Df11 * Df11'))];
+
+    % Bilinear optimization variables
+    T_C = blkdiag(Xbar, d2, d - dbar);
+    T_A = blkdiag(X, dbar, 0);
+    T_B = blkdiag(eye(size(X)) * d, d, 0);
+    [~, ma] = size(T_A);
+    [pm, mm] = size(T_C);
+
+    % Constraint for well-defined controller
+    Con_def = Y_inf'*Y_inf + [(Y_inf' * N_inf) (N_inf'*Y_inf)...
+              (N_inf' * N_inf)] * [dbar * eye(dim); d * eye(dim);...
+              d2 * (eye(dim))] >= eps_safe * eye(dim);
+
+    % Constraint for implementable NRF
+    Con_implem = Yb_inf'*Yb_inf + [(Yb_inf' * Nb_inf) (Nb_inf'*Yb_inf)...
+                 (Nb_inf' * Nb_inf)] * [dbar; d; d2] >= eps_safe * eye(1);
+
+    % Constraints for norm bound
+    Con_norm = sysmat <= - eps_safe * eye(size(sysmat));
+    Con_X_pos = X >= eps_safe * eye(size(X));
+    
+    % Define constraints
+    Con = [Con_def, Con_implem, Con_norm, Con_X_pos];
+
+    Obj = norm([T_C + T_A * Yka T_A + Xka;...
+              zeros(ma, mm) eye(ma)], 'nuclear'); % nuclear norm relaxation
+ 
+    sol = optimize(Con, Obj, options);
+ 
+    % Analyze error flags
+    if sol.problem ~= 0
+        disp('Hmm, something went wrong!');
+        sol.info
+        yalmiperror(sol.problem)
+    end
+ 
+    resid{iter + 1} = sum(svd(value(T_C) - value(T_A) * value(T_B)));
+    
+    if resid{iter + 1} <= eps_safe
+        break; % iteration converged after odd number of steps
+    end
+    
+    % Prepare next iteration
+    iter = iter + 1;
+    Xkb = - value(T_A);
+    Ykb = - value(T_B);
+    dbar_prev = value(dbar);
+    X_prev = value(X);
     
     % Update variables
     d = sdpvar(1);
@@ -445,75 +506,6 @@ while iter < max_iter && resid{iter + 1} > eps_safe
         sol.info
         yalmiperror(sol.problem)
     end
- 
-    resid{iter + 1} = sum(svd(value(T_C) - value(T_A) * value(T_B)));
- 
-    if resid{iter + 1} <= eps_safe
-        break; % iteration converged after odd number of steps
-    end
-    
-    % Prepare next iteration
-    iter = iter + 1;
-    Xka = - value(T_A);
-    Yka = - value(T_B);
-    d_prev = value(d);
-    
-    % Update variables
-    d = d_prev;
-    dbar = sdpvar(1);
-    d2 = sdpvar(1);
-    X = sdpvar(length(T_sys.a));
-    Xbar = sdpvar(length(T_sys.a));
-
-    % Bounded real lemma matrix
-    sysmat = [(Af'*X+(Bf2*Cf2)' * Xbar) + (Af'*X+(Bf2*Cf2)' * Xbar)'...
-              X*Bf1+Xbar*Bf2*Df21 (Cf1+Df12*Cf2*d)'; (X * Bf1 + Xbar *...
-              Bf2 * Df21)' -eye(size(Df11' * Df11)) (Df11 + Df12 * Df21...
-              * d)'; Cf1 + Df12 * Cf2 * d, Df11 + Df12 * Df21 * d,...
-              - eye(size(Df11 * Df11'))];
-
-    % Bilinear optimization variables
-    T_C = blkdiag(Xbar, d2, d - dbar);
-    T_A = blkdiag(X, dbar, 0);
-    T_B = blkdiag(eye(size(X)) * d, d, 0);
-    [~, ma] = size(T_A);
-    [pm, mm] = size(T_C);
-
-
-
-    % Constraint for well-defined controller
-    Con_def = Y_inf'*Y_inf + [(Y_inf' * N_inf) (N_inf'*Y_inf)...
-              (N_inf' * N_inf)] * [dbar * eye(dim); d * eye(dim);...
-              d2 * (eye(dim))] >= eps_safe * eye(dim);
-
-    % Constraint for implementable NRF
-    Con_implem = Yb_inf'*Yb_inf + [(Yb_inf' * Nb_inf) (Nb_inf'*Yb_inf)...
-                 (Nb_inf' * Nb_inf)] * [dbar; d; d2] >= eps_safe * eye(1);
-
-    % Constraints for norm bound
-    Con_norm = sysmat <= - eps_safe * eye(size(sysmat));
-    Con_X_pos = X >= eps_safe * eye(size(X));
-    
-    % Define constraints
-    Con = [Con_def, Con_implem, Con_norm, Con_X_pos];
-
-    Obj = norm([T_C + T_A * Yka T_A + Xka;...
-              zeros(ma, mm) eye(ma)], 'nuclear'); % nuclear norm relaxation
- 
-    sol = optimize(Con, Obj, options);
- 
-    % Analyze error flags
-    if sol.problem ~= 0
-        disp('Hmm, something went wrong!');
-        sol.info
-        yalmiperror(sol.problem)
-    end
-    
-    % Prepare next iteration
-    Xkb = - value(T_A);
-    Ykb = - value(T_B);
-    dbar_prev = value(dbar);
-    X_prev = value(X);
  
     resid{iter + 1} = sum(svd(value(T_C) - value(T_A) * value(T_B)));
  
