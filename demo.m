@@ -276,8 +276,8 @@ while dist_sup-dist_inf > tol_dist
         Hankel_norm_sq = 0;
     else
         [~,anti_stab_RR] = stabsep(RR - RR.d);
-        Lc = lyap(anti_stab_RR.a, anti_stab_RR.b*anti_stab_RR.b');
-        Lo = lyap(anti_stab_RR.a', anti_stab_RR.c'*anti_stab_RR.c);
+        Lc = lyap(anti_stab_RR.a, -anti_stab_RR.b*anti_stab_RR.b');
+        Lo = lyap(anti_stab_RR.a', -anti_stab_RR.c'*anti_stab_RR.c);
         % square of the norm for the Hankel operator of symbol RR
         Hankel_norm_sq = max(abs(eig(Lc * Lo)));
     end
@@ -689,7 +689,6 @@ function Xt = diag_rep(X, n)
     end
     
 end
-
  	
 %%
 
