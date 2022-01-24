@@ -689,6 +689,7 @@ function Xt = diag_rep(X, n)
     end
     
 end
+
  	
 %%
 
