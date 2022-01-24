@@ -17,6 +17,7 @@ dim = 20;
 Gamma = eye(dim) * g2;
 Phi = eye(dim) * tf(1, 1);
 Phi(1, dim) = g1;
+
 for i = 2:dim
     Phi(i, i - 1) = g1;
 end
@@ -30,6 +31,7 @@ G = Phi \ Gamma;
 coef_dom_n = zeros(dim);
 coef_dom_d1 = zeros(dim);
 coef_dom_d2 = zeros(dim);
+
 for i=1:dim
     for j=1:dim
         temp = G(i,j);
@@ -193,9 +195,7 @@ norm(orig_NRCF'*orig_NRCF - eye(dim), inf)
 %% 
 %  Compute maximum stability radius for the approximated network's TFM
 
-% controllability gramian of NRCF
 Gc = lyap(appr_NRCF.a, appr_NRCF.b*appr_NRCF.b');
-% observability gramian of NRCF
 Go = lyap(appr_NRCF.a', appr_NRCF.c'*appr_NRCF.c);
 max_rad = sqrt(1 - max(abs(eig(Gc * Go)))); % maximum stability radius
 disp(max_rad) % large value indicates potential for good robustness
@@ -276,9 +276,7 @@ while dist_sup-dist_inf > tol_dist
         Hankel_norm_sq = 0;
     else
         [~,anti_stab_RR] = stabsep(RR - RR.d);
-        % controllability gramian of the antistable part of RR
         Lc = lyap(anti_stab_RR.a, anti_stab_RR.b*anti_stab_RR.b');
-        % observability gramian of the antistable part of RR 
         Lo = lyap(anti_stab_RR.a', anti_stab_RR.c'*anti_stab_RR.c);
         % square of the norm for the Hankel operator of symbol RR
         Hankel_norm_sq = max(abs(eig(Lc * Lo)));
@@ -534,6 +532,7 @@ T1e = dss([Ar, - Br * Fa; zeros(length(Aa), length(Ar)) Aa + La * Ca], ...
           [zeros(length(Ar), dim), - Br; La, - Ba - La * Da], eps_m * ...
           [- Hr * Fr, - Hr * Fa], [zeros(dim), - eps_m * Hr],...
           blkdiag(eye(size(Ar)), Ea));
+          
 T1e = balreal(ss(T1e, 'min')); % eliminate nondynamic modes
 
 
@@ -566,6 +565,7 @@ Gamma_K = tf(0, 1) * ones(dim);
 
 Phi_K(1, dim) = -balreal(ss(K_LF_struc(1, 1) \ K_LF_struc(1, dim), 'min'));
 Gamma_K(1, 1) = balreal(ss(K_LF_struc(1, 1) \ K_RF_struc(1, 1), 'min'));
+
 for i = 2:dim
   Phi_K(i, i - 1) = -balreal(ss(K_LF_struc(i, i) \ K_LF_struc(i, i - 1),...
                                  'min'));
