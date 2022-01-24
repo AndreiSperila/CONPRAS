@@ -532,7 +532,6 @@ T1e = dss([Ar, - Br * Fa; zeros(length(Aa), length(Ar)) Aa + La * Ca], ...
           [zeros(length(Ar), dim), - Br; La, - Ba - La * Da], eps_m * ...
           [- Hr * Fr, - Hr * Fa], [zeros(dim), - eps_m * Hr],...
           blkdiag(eye(size(Ar)), Ea));
-          
 T1e = balreal(ss(T1e, 'min')); % eliminate nondynamic modes
 
 
@@ -581,6 +580,7 @@ K_a = (eye(dim) - Phi_K_a) \ Gamma_K_a; % form apprixmated controller's TFM
 
 rob_marg_a = ncfmargin(G, K_a, 1,1e-6); % still a good robustness indicator
 disp(rob_marg_a) % display obtained stability radius after approximation
+
 
 %%
 
