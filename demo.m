@@ -367,10 +367,10 @@ Con_norm = sysmat <= - eps_safe * eye(size(sysmat));
 Con_X_pos = X >= eps_safe * eye(size(X));
 
 % Initial constraint for free term (optional, but speeds up convergence)
-%Con_d = dbar == d;
+Con_d = dbar == d;
 
 % Define constraints
-Con = [Con_def, Con_implem, Con_norm, Con_X_pos];%, Con_d];
+Con = [Con_def, Con_implem, Con_norm, Con_X_pos, Con_d];
 
 sol = optimize(Con, [], options); % check LMI feasibility (necessary)
 
