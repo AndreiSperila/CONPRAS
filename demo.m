@@ -298,7 +298,7 @@ disp(dist_sup) % just under 0.5609
 eps_m = 0.7; % desired stability margin which is greater than dist_sup
 eps_safe = 1e-6; % imposed tolerance level
 
-% Compute feedthrough controller "denominator"
+% Compute feedthrough of controller "denominator"
 Y_inf  = evalfr(Ytb, inf) * Tk;
 N_inf  = evalfr(Ntb, inf) * Tk;
 Yb_inf = evalfr(Yb, inf);
