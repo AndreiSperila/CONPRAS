@@ -355,12 +355,12 @@ T_B = blkdiag(eye(size(X)) * d, d, 0);
 
 % Constraint for well-defined controller
 Con_def = Y_inf'*Y_inf + [(Y_inf' * N_inf) (N_inf'*Y_inf)...
-          (N_inf' * N_inf)] * [dbar * eye(dim); d * eye(dim);...
+          (N_inf' * N_inf)] * [d * eye(dim); dbar * eye(dim);...
           d2 * (eye(dim))] >= eps_safe * eye(dim);
 
 % Constraint for implementable NRF
 Con_implem = Yb_inf'*Yb_inf + [(Yb_inf' * Nb_inf) (Nb_inf'*Yb_inf)...
-             (Nb_inf' * Nb_inf)] * [dbar; d; d2] >= eps_safe * eye(1);
+             (Nb_inf' * Nb_inf)] * [d; dbar; d2] >= eps_safe * eye(1);
 
 % Constraints for norm bound
 Con_norm = sysmat <= - eps_safe * eye(size(sysmat));
@@ -418,12 +418,12 @@ while iter < max_iter && resid{iter + 1} > eps_safe
 
     % Constraint for well-defined controller
     Con_def = Y_inf'*Y_inf + [(Y_inf' * N_inf) (N_inf'*Y_inf)...
-              (N_inf' * N_inf)] * [dbar * eye(dim); d * eye(dim);...
+              (N_inf' * N_inf)] * [d * eye(dim); dbar * eye(dim);...
               d2 * (eye(dim))] >= eps_safe * eye(dim);
 
     % Constraint for implementable NRF
     Con_implem = Yb_inf'*Yb_inf + [(Yb_inf' * Nb_inf) (Nb_inf'*Yb_inf)...
-                 (Nb_inf' * Nb_inf)] * [dbar; d; d2] >= eps_safe * eye(1);
+                 (Nb_inf' * Nb_inf)] * [d; dbar; d2] >= eps_safe * eye(1);
 
     % Constraints for norm bound
     Con_norm = sysmat <= - eps_safe * eye(size(sysmat));
@@ -480,12 +480,12 @@ while iter < max_iter && resid{iter + 1} > eps_safe
 
     % Constraint for well-defined controller
     Con_def = Y_inf'*Y_inf + [(Y_inf' * N_inf) (N_inf'*Y_inf)...
-              (N_inf' * N_inf)] * [dbar * eye(dim); d * eye(dim);...
+              (N_inf' * N_inf)] * [d * eye(dim); dbar * eye(dim);...
               d2 * (eye(dim))] >= eps_safe * eye(dim);
 
     % Constraint for implementable NRF
     Con_implem = Yb_inf'*Yb_inf + [(Yb_inf' * Nb_inf) (Nb_inf'*Yb_inf)...
-                 (Nb_inf' * Nb_inf)] * [dbar; d; d2] >= eps_safe * eye(1);
+                 (Nb_inf' * Nb_inf)] * [d; dbar; d2] >= eps_safe * eye(1);
 
     % Constraints for norm bound
     Con_norm = sysmat <= - eps_safe * eye(size(sysmat)); % X is fixed
