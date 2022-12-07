@@ -450,7 +450,7 @@ if method == 4 % special intialization for the IRM-based method
     Con_met_4 = [Con, ...
         [Y, M; M', Z] >= zeros(pm+mm), ... % classical trace heuristic
                                        ... % inequality constaint
-        [eye(pm), M; M', Z] >= zeros(pm+mm)]; % enforce initialization
+        [eye(pm), M; M', Z] >= zeros(pm+mm)]; % guarantee initialization
                                               % positive semidefiniteness
 
     sol = optimize(Con_met_4, trace(Y)+trace(Z), options); % solve for
@@ -476,8 +476,8 @@ if method == 4 % initialization setup for IRM-based mathod
     Z = value(Z);
     [V, D] = schur([eye(pm), M; M', Z]);
     [~, order] = sort(diag(D), 'asc');
-    V_prev = V(:, order(1:mm));
-    
+    V_prev = V(:, order(1:mm)) * flip(eye(mm));
+
     % Choose weighting factors
     e_prev = D(order(mm), order(mm));
     w_init = 1;
@@ -894,6 +894,7 @@ switch method % employ selected method to solve relaxed problem
             Z = value(Z);
             [V, D] = schur([eye(pm), M; M', Z]);
             [~, order] = sort(diag(D), 'asc');
+            V_prev = V(:, order(1:mm)) * flip(eye(mm));
 
             % Update weighting factors
             e_prev = e_now;
@@ -922,7 +923,6 @@ run_time = toc; % time elapsed during optimization
 
 Qs = tf(value(d), 1) * eye(dim); % express the solution of the optimization
 Q = (Tk \ Qs * eye(dim)); % form the Youla parameter for the original DCF
-
 K_LF = balreal(ss(Tk \ (Ytb * Tk) + Q * Ntb * Tk, 'min')); % left factor
 K_RF = balreal(ss(Tk \ (Xtb * eye(dim)) + Q * Mtb, 'min')); % right factor
 K = balreal(ss(K_LF \ K_RF, 'min')); % the controller's structureless TFM
