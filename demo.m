@@ -926,9 +926,9 @@ run_time = toc; % time elapsed during optimization
 Qs = tf(value(d), 1) * eye(dim); % express the solution of the optimization
 Q = (Tk \ Qs * eye(dim)); % form the Youla parameter for the original DCF
 
-K_LCF = balreal(ss(Tk \ (Ytb * Tk) + Q * Ntb * Tk, 'min')); % left factor
-K_RCF = balreal(ss(Tk \ (Xtb * eye(dim)) + Q * Mtb, 'min')); % right factor
-K = balreal(ss(K_LCF \ K_RCF, 'min')); % the controller's structureless TFM
+K_LF = balreal(ss(Tk \ (Ytb * Tk) + Q * Ntb * Tk, 'min')); % left factor
+K_RF = balreal(ss(Tk \ (Xtb * eye(dim)) + Q * Mtb, 'min')); % right factor
+K = balreal(ss(K_LF \ K_RF, 'min')); % the controller's structureless TFM
 
 %%
 %  Form closed-loop system
@@ -961,8 +961,8 @@ disp(rob_marg_3) % display obtained stability radius for original network
 %%
 %  Form controller NRF
 
-K_LF_struc = Tk * K_LCF; % form structured left  factor of controller LCF
-K_RF_struc = Tk * K_RCF; % form structured right factor of controller LCF
+K_LF_struc = Tk * K_LF; % form structured left  factor of controller LCF
+K_RF_struc = Tk * K_RF; % form structured right factor of controller LCF
 
 Phi = tf(0, 1) * ones(dim);
 Gamma = tf(0, 1) * ones(dim);
