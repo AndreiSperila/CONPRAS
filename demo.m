@@ -182,7 +182,6 @@ B = Psi_dss.b;
 C = Psi_dss.c;
 D = Psi_dss.d;
 E = Psi_dss.e;
-
 lam = -4;
 F = place_dss(E, A, B, lam);
 L = place_dss(E', A', C', lam)';
@@ -194,7 +193,6 @@ aux_LCF = tf(dss(A + L * C, [- B - (L * D) L], [F; C], [1 0; - D 1], E));
 aux_LCF = tf(ss(aux_LCF, 'min')); % eliminate nondynamic modes
 aux_RCF = tf(dss(A + B * F, [B, - L], [F; C + D * F], [1 0; D 1], E));
 aux_RCF = tf(ss(aux_RCF, 'min')); % eliminate nondynamic modes
-
 Ytb =   aux_LCF(1, 1);
 Xtb = - aux_LCF(1, 2);
 Ntb = - aux_LCF(2, 1);
@@ -292,7 +290,6 @@ Al = orig_LCF.a';
 Bl = orig_LCF.c';
 Cl = orig_LCF.b';
 Dl = orig_LCF.d';
-
 [Xl, ~, Fl] = care(Al, Bl, Cl' * Cl, Dl' * Dl, Cl' * Dl);
 Fl = - Fl;
 Hl = chol(Dl' * Dl);
@@ -982,6 +979,9 @@ Phi = ss(Phi); % obtain realization
 norm(Phi - Phi.d, inf) % check against feedthrough term
 % approximately 0
 Phi = Phi.d; % preserve only feedthrough
+
+norm(K - (eye(dim) - Phi) \ Gamma, inf) % check NRF validity
+% approximately 0
 
 %%
 %  Approximate solution
