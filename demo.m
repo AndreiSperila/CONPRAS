@@ -434,8 +434,8 @@ Con_implem = Yb_inf' * Yb_inf + [(Yb_inf' * Nb_inf), (Nb_inf' * Yb_inf),...
 % denoted by "Con_def" and "Con_implem".
 
 % If the matrices mentioned in the above paragraph were not symmetric, then
-% the constraints would have to be replaced each with a pair of equivalent
-% constraints. For example, the expression
+% each of these constraints would have to be replaced with a pair of 
+% equivalent constraints. For example, the expression
 % Mat_Expr = Y_inf' * Y_inf + [(Y_inf' * N_inf), (N_inf' * Y_inf), ...
 % (N_inf' * N_inf)] * [d * eye(dim); dbar * eye(dim); d2 * (eye(dim))]; 
 % can be made positive definite via the following two constraints:
