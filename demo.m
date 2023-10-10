@@ -39,7 +39,6 @@ method = 1;
 %  Input network TFM
 
 s = tf('s');
-
 G_bar_y = (s + 2) / (s + 1);
 G_bar_u = (4 * s + 7) / (s - 1);
 
@@ -160,7 +159,6 @@ Co = orig_RCF.c;
 Do = orig_RCF.d;
 
 [Xo, ~, Fo] = care(Ao, Bo, Co' * Co, Do' * Do, Co' * Do);
-
 orig_NRCF = ss(Ao - Bo * Fo, Bo / chol(Do' * Do), Co - Do * Fo,...
     Do / chol(Do' * Do));
 orig_NRCF = balreal(ss(orig_NRCF,'min'));
@@ -390,10 +388,10 @@ Df21 = T_sys.d(dim + 1:end, 1:2 * dim);
 
 iter = 0; % iteration number
 
-tic % measure time spent in optimization procedure
-
 %%
 %  Define optimization problem through YALMIP
+
+tic % measure time spent in optimization procedur
 
 % Recommended solver for minimizing runtime is MOSEK
 options = sdpsettings('verbose', 1, 'solver', 'mosek');
@@ -428,6 +426,21 @@ Con_def = Y_inf' * Y_inf + [(Y_inf' * N_inf), (N_inf' * Y_inf), ...
 % Constraint for implementable NRF
 Con_implem = Yb_inf' * Yb_inf + [(Yb_inf' * Nb_inf), (Nb_inf' * Yb_inf),...
     (Nb_inf' * Nb_inf)] * [d; dbar; d2] >= eps_safe * eye(1);
+
+% Notice that the matrices (Y_inf' * N_inf) and (N_inf' * Y_inf) are
+% symmetric, while (Yb_inf' * Nb_inf) and (Nb_inf' * Yb_inf) are scalar.
+% Thus, the solver interprets correctly , i.e., matrix-wise and not 
+% element-wise inequalities, the constraints contained in the variables
+% denoted by "Con_def" and "Con_implem".
+
+% If the matrices mentioned in the above paragraph were not symmetric, then
+% the constraints would have to be replaced each with a pair of equivalent
+% constraints. For example, the expression
+% Mat_Expr = Y_inf' * Y_inf + [(Y_inf' * N_inf), (N_inf' * Y_inf), ...
+% (N_inf' * N_inf)] * [d * eye(dim); dbar * eye(dim); d2 * (eye(dim))]; 
+% can be made positive definite via the following two constraints:
+% Symmetric_constraint = Mat_Expr - (Mat_Expr)' == zeros(dim);
+% Positive_constraint  = Mat_Expr + (Mat_Expr)' >= 2* eps_safe * eye(dim);
 
 % Constraints for norm bound
 Con_norm = sysmat <= -eps_safe * eye(size(sysmat));
@@ -960,7 +973,6 @@ disp(rob_marg_3) % display obtained stability radius for original network
 
 K_LF_struc = Tk * K_LF; % form structured left  factor of controller LCF
 K_RF_struc = Tk * K_RF; % form structured right factor of controller LCF
-
 Phi = tf(0, 1) * ones(dim);
 Gamma = tf(0, 1) * ones(dim);
 Phi(1, dim) = -balreal(ss(K_LF_struc(1, 1) \ K_LF_struc(1, dim), 'min'));
@@ -979,7 +991,6 @@ Phi = ss(Phi); % obtain realization
 norm(Phi - Phi.d, inf) % check against feedthrough term
 % approximately 0
 Phi = Phi.d; % preserve only feedthrough
-
 norm(K - (eye(dim) - Phi) \ Gamma, inf) % check NRF validity
 % approximately 0
 
