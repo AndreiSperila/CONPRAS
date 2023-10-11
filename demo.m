@@ -236,7 +236,9 @@ Ar = appr_RCF.a;
 Br = appr_RCF.b;
 Cr = appr_RCF.c;
 Dr = appr_RCF.d;
+
 [Xr, ~, Fr] = care(Ar, Br, Cr' * Cr, Dr' * Dr, Cr' * Dr);
+
 Fr = - Fr;
 Hr = chol(Dr'*Dr);
 appr_NRCF = ss(Ar + Br * Fr, Br / Hr, Cr + Dr * Fr, Dr / Hr);
@@ -430,10 +432,6 @@ Con_def = Y_inf' * Y_inf + [Y_inf' * N_inf + N_inf' * Y_inf, ...
 % Constraint for implementable NRF
 Con_implem = Yb_inf' * Yb_inf + [Yb_inf' * Nb_inf + Nb_inf' * Yb_inf,...
     Nb_inf' * Nb_inf] * [d; d2] >= eps_safe * eye(1);
-
-% Notice that the matrices (Y_inf' * N_inf) and (N_inf' * Y_inf) are
-% symmetric, while (Yb_inf' * Nb_inf) and (Nb_inf' * Yb_inf) are scalar.
-% Therefore, they are already equal to their symmetric parts.
 
 % Constraints for norm bound
 Con_norm = sysmat <= -eps_safe * eye(size(sysmat));
@@ -964,6 +962,7 @@ K_LF_struc = Tk * K_LF; % form structured left  factor of controller LCF
 K_RF_struc = Tk * K_RF; % form structured right factor of controller LCF
 Phi = tf(0, 1) * ones(dim);
 Gamma = tf(0, 1) * ones(dim);
+
 Phi(1, dim) = -balreal(ss(K_LF_struc(1, 1) \ K_LF_struc(1, dim), 'min'));
 Gamma(1, 1) = balreal(ss(K_LF_struc(1, 1) \ K_RF_struc(1, 1), 'min'));
 
@@ -979,6 +978,7 @@ end
 Phi = ss(Phi); % obtain realization
 norm(Phi - Phi.d, inf) % check against feedthrough term
 % approximately 0
+
 Phi = Phi.d; % preserve only feedthrough
 norm(K - (eye(dim) - Phi) \ Gamma, inf) % check NRF validity
 % approximately 0
