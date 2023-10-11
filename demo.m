@@ -429,18 +429,7 @@ Con_implem = Yb_inf' * Yb_inf + [(Yb_inf' * Nb_inf), (Nb_inf' * Yb_inf),...
 
 % Notice that the matrices (Y_inf' * N_inf) and (N_inf' * Y_inf) are
 % symmetric, while (Yb_inf' * Nb_inf) and (Nb_inf' * Yb_inf) are scalar.
-% Thus, the solver interprets correctly , i.e., matrix-wise and not 
-% element-wise inequalities, the constraints contained in the variables
-% denoted by "Con_def" and "Con_implem".
-
-% If the matrices mentioned in the above paragraph were not symmetric, then
-% each of these constraints would have to be replaced with a pair of 
-% equivalent constraints. For example, the expression
-% Mat_Expr = Y_inf' * Y_inf + [(Y_inf' * N_inf), (N_inf' * Y_inf), ...
-% (N_inf' * N_inf)] * [d * eye(dim); dbar * eye(dim); d2 * (eye(dim))]; 
-% can be made positive definite via the following two constraints:
-% Symmetric_constraint = Mat_Expr - (Mat_Expr)' == zeros(dim);
-% Positive_constraint  = Mat_Expr + (Mat_Expr)' >= 2* eps_safe * eye(dim);
+% Therefore, they are already equal to their symmetric parts.
 
 % Constraints for norm bound
 Con_norm = sysmat <= -eps_safe * eye(size(sysmat));
