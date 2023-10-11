@@ -43,6 +43,7 @@ G_bar_y = (s + 2) / (s + 1);
 G_bar_u = (4 * s + 7) / (s - 1);
 
 dim = 20;
+
 G_bar_D = eye(dim) * G_bar_u;
 G_bar_S = eye(dim) * tf(1, 1);
 G_bar_S(1, dim) = - G_bar_y;
@@ -148,6 +149,7 @@ prod(double([fin_dyn_stab impulse_ctrb]))
 
 lam_G = -1:-0.1:-1 - 0.1 * (length(G_bar_dss.a) - 2);
 F = place_dss(G_bar_dss.e, G_bar_dss.a, G_bar_dss.b, lam_G);
+
 orig_RCF = dss(G_bar_dss.a + G_bar_dss.b * F, G_bar_dss.b, [F; ...
     G_bar_dss.c + G_bar_dss.d * F], [eye(dim); G_bar_dss.d], G_bar_dss.e);
 % form stable RCF for the spectral factorization problem
@@ -159,6 +161,7 @@ Co = orig_RCF.c;
 Do = orig_RCF.d;
 
 [Xo, ~, Fo] = care(Ao, Bo, Co' * Co, Do' * Do, Co' * Do);
+
 orig_NRCF = ss(Ao - Bo * Fo, Bo / chol(Do' * Do), Co - Do * Fo,...
     Do / chol(Do' * Do));
 orig_NRCF = balreal(ss(orig_NRCF,'min'));
@@ -175,11 +178,13 @@ Tk = kappa * Xi_1 + eye(dim);
 
 Psi_dss = ss(Psi - evalfr(Psi, 0)); % select descriptor feedthrough
 Psi_dss.d = evalfr(Psi, 0);         % for increased numerical accuracy
+
 A = Psi_dss.a;
 B = Psi_dss.b;
 C = Psi_dss.c;
 D = Psi_dss.d;
 E = Psi_dss.e;
+
 lam = -4;
 F = place_dss(E, A, B, lam);
 L = place_dss(E', A', C', lam)';
@@ -322,7 +327,6 @@ while dist_sup - dist_inf > tol_dist
     % The following system is guaranteed to be positive-definite
     % on the extended imaginary axis
     FF = balreal(ss(dist_check^2*eye(dim)-JJ'*JJ,'min'));
-
     [sFF, aFF] = stabsep(FF - FF.d); % isolate the stable part
     Aff = sFF.a;
     Bff = sFF.b;
@@ -419,13 +423,13 @@ T_B = blkdiag(eye(size(X)) * d, d, 0);
 [pm, mm] = size(T_C);
 
 % Constraint for well-defined controller
-Con_def = Y_inf' * Y_inf + [(Y_inf' * N_inf), (N_inf' * Y_inf), ...
-    (N_inf' * N_inf)] * [d * eye(dim); dbar * eye(dim); ...
+Con_def = Y_inf' * Y_inf + [Y_inf' * N_inf + N_inf' * Y_inf, ...
+    N_inf' * N_inf] * [d * eye(dim); ...
     d2 * (eye(dim))] >= eps_safe * eye(dim);
 
 % Constraint for implementable NRF
-Con_implem = Yb_inf' * Yb_inf + [(Yb_inf' * Nb_inf), (Nb_inf' * Yb_inf),...
-    (Nb_inf' * Nb_inf)] * [d; dbar; d2] >= eps_safe * eye(1);
+Con_implem = Yb_inf' * Yb_inf + [Yb_inf' * Nb_inf + Nb_inf' * Yb_inf,...
+    Nb_inf' * Nb_inf] * [d; d2] >= eps_safe * eye(1);
 
 % Notice that the matrices (Y_inf' * N_inf) and (N_inf' * Y_inf) are
 % symmetric, while (Yb_inf' * Nb_inf) and (Nb_inf' * Yb_inf) are scalar.
@@ -529,14 +533,14 @@ switch method % employ selected method to solve relaxed problem
             [pm, mm] = size(T_C);
 
             % Constraint for well-defined controller
-            Con_def = Y_inf' * Y_inf + [(Y_inf' * N_inf), (N_inf' * ...
-                Y_inf), (N_inf' * N_inf)] * [d * eye(dim); dbar * ...
-                eye(dim); d2 * (eye(dim))] >= eps_safe * eye(dim);
-
+            Con_def = Y_inf' * Y_inf + [Y_inf' * N_inf + N_inf' * Y_inf,...
+                N_inf' * N_inf] * [d * eye(dim); ...
+                d2 * (eye(dim))] >= eps_safe * eye(dim);
+            
             % Constraint for implementable NRF
-            Con_implem = Yb_inf' * Yb_inf + [(Yb_inf' * Nb_inf), ...
-                (Nb_inf' * Yb_inf), (Nb_inf' * Nb_inf)] * [d; dbar; d2] ...
-                >= eps_safe * eye(1);
+            Con_implem = Yb_inf' * Yb_inf + [Yb_inf' * Nb_inf +... 
+                Nb_inf' * Yb_inf, Nb_inf' * Nb_inf] *...
+                [d; d2] >= eps_safe * eye(1);
 
             % Constraints for norm bound
             Con_norm = sysmat <= -eps_safe * eye(size(sysmat));
@@ -593,15 +597,14 @@ switch method % employ selected method to solve relaxed problem
             [pm, mm] = size(T_C);
 
             % Constraint for well-defined controller
-            Con_def = Y_inf' * Y_inf + [(Y_inf' * N_inf), ...
-                (N_inf' * Y_inf), (N_inf' * N_inf)] * [d * ...
-                eye(dim); dbar * eye(dim); d2 * (eye(dim))] >= ...
-                eps_safe * eye(dim);
-
+            Con_def = Y_inf' * Y_inf + [Y_inf' * N_inf + N_inf' * Y_inf,...
+                N_inf' * N_inf] * [d * eye(dim); ...
+                d2 * (eye(dim))] >= eps_safe * eye(dim);
+            
             % Constraint for implementable NRF
-            Con_implem = Yb_inf' * Yb_inf + [(Yb_inf' * Nb_inf), ...
-                (Nb_inf' * Yb_inf), (Nb_inf' * Nb_inf)] * ...
-                [d; dbar; d2] >= eps_safe * eye(1);
+            Con_implem = Yb_inf' * Yb_inf + [Yb_inf' * Nb_inf +... 
+                Nb_inf' * Yb_inf, Nb_inf' * Nb_inf] *...
+                [d; d2] >= eps_safe * eye(1);
 
             % Constraints for norm bound
             Con_norm = sysmat <= -eps_safe * eye(size(sysmat)); %X is fixed
@@ -655,19 +658,18 @@ switch method % employ selected method to solve relaxed problem
             [pm, mm] = size([T_C, T_A; T_B, eye(ma)]);
 
             % Constraint for well-defined controller
-            Con_def = Y_inf' * Y_inf + [(Y_inf' * N_inf), ...
-                (N_inf' * Y_inf), (N_inf' * N_inf)] * [d * ...
-                eye(dim); dbar * eye(dim); d2 * (eye(dim))] >= ...
-                1e-6 * eye(dim);
-
+            Con_def = Y_inf' * Y_inf + [Y_inf' * N_inf + N_inf' * Y_inf,...
+                N_inf' * N_inf] * [d * eye(dim); ...
+                d2 * (eye(dim))] >= eps_safe * eye(dim);
+            
             % Constraint for implementable NRF
-            Con_implem = Yb_inf' * Yb_inf + [(Yb_inf' * Nb_inf), ...
-                (Nb_inf' * Yb_inf), (Nb_inf' * Nb_inf)] * ...
-                [d; dbar; d2] >= 1e-6 * eye(1);
+            Con_implem = Yb_inf' * Yb_inf + [Yb_inf' * Nb_inf +... 
+                Nb_inf' * Yb_inf, Nb_inf' * Nb_inf] *...
+                [d; d2] >= eps_safe * eye(1);
 
             % Constraints for norm bound
-            Con_norm = sysmat <= -1e-6 * eye(size(sysmat));
-            Con_X_pos = X >= 1e-6 * eye(size(X));
+            Con_norm = sysmat <= -eps_safe * eye(size(sysmat));
+            Con_X_pos = X >= eps_safe * eye(size(X));
 
             % Group up constraints
             Con = [Con_def, Con_implem, Con_norm, Con_X_pos];
@@ -745,19 +747,18 @@ switch method % employ selected method to solve relaxed problem
             x6 = sdpvar(1);
 
             % Constraint for well-defined controller
-            Con_def = Y_inf' * Y_inf + [(Y_inf' * N_inf), ...
-                (N_inf' * Y_inf), (N_inf' * N_inf)] * [d * ...
-                eye(dim); dbar * eye(dim); d2 * (eye(dim))] >= ...
-                1e-6 * eye(dim);
-
+            Con_def = Y_inf' * Y_inf + [Y_inf' * N_inf + N_inf' * Y_inf,...
+                N_inf' * N_inf] * [d * eye(dim); ...
+                d2 * (eye(dim))] >= eps_safe * eye(dim);
+            
             % Constraint for implementable NRF
-            Con_implem = Yb_inf' * Yb_inf + [(Yb_inf' * Nb_inf), ...
-                (Nb_inf' * Yb_inf), (Nb_inf' * Nb_inf)] * ...
-                [d; dbar; d2] >= 1e-6 * eye(1);
+            Con_implem = Yb_inf' * Yb_inf + [Yb_inf' * Nb_inf +... 
+                Nb_inf' * Yb_inf, Nb_inf' * Nb_inf] *...
+                [d; d2] >= eps_safe * eye(1);
 
             % Constraints for norm bound
-            Con_norm = sysmat <= -1e-6 * eye(size(sysmat));
-            Con_X_pos = X >= 1e-6 * eye(size(X));
+            Con_norm = sysmat <= -eps_safe * eye(size(sysmat));
+            Con_X_pos = X >= eps_safe * eye(size(X));
 
             % Constraints based upon auxiliary variables
             cone_1 = cone(reshape(M-M_bar_f, pm*mm, 1), x1);
@@ -854,19 +855,18 @@ switch method % employ selected method to solve relaxed problem
             e_now = sdpvar(1);
 
             % Constraint for well-defined controller
-            Con_def = Y_inf' * Y_inf + [(Y_inf' * N_inf), ...
-                (N_inf' * Y_inf), (N_inf' * N_inf)] * [d * ...
-                eye(dim); dbar * eye(dim); d2 * (eye(dim))] >= ...
-                1e-6 * eye(dim);
-
+            Con_def = Y_inf' * Y_inf + [Y_inf' * N_inf + N_inf' * Y_inf,...
+                N_inf' * N_inf] * [d * eye(dim); ...
+                d2 * (eye(dim))] >= eps_safe * eye(dim);
+            
             % Constraint for implementable NRF
-            Con_implem = Yb_inf' * Yb_inf + [(Yb_inf' * Nb_inf), ...
-                (Nb_inf' * Yb_inf), (Nb_inf' * Nb_inf)] * ...
-                [d; dbar; d2] >= 1e-6 * eye(1);
+            Con_implem = Yb_inf' * Yb_inf + [Yb_inf' * Nb_inf +... 
+                Nb_inf' * Yb_inf, Nb_inf' * Nb_inf] *...
+                [d; d2] >= eps_safe * eye(1);
 
             % Constraints for norm bound
-            Con_norm = sysmat <= -1e-6 * eye(size(sysmat));
-            Con_X_pos = X >= 1e-6 * eye(size(X));
+            Con_norm = sysmat <= -eps_safe * eye(size(sysmat));
+            Con_X_pos = X >= eps_safe * eye(size(X));
 
             % Constraints based upon auxiliary variables
             pos_sem_def_1 = [Y, M; M', Z] >= 0 * eye(pm+mm);
