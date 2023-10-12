@@ -437,7 +437,7 @@ Con_implem = Yb_inf' * Yb_inf + [Yb_inf' * Nb_inf + Nb_inf' * Yb_inf,...
 Con_norm = sysmat <= -eps_safe * eye(size(sysmat));
 Con_X_pos = X >= eps_safe * eye(size(X));
 
-% Initial constraint for free term (optional, but speeds up convergence)
+% Initial constraint for free term
 Con_d = dbar == d;
 
 % Group up constraints
